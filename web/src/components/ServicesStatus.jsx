@@ -5,9 +5,10 @@ const LABELS = {
   auth: ['Servicio 1', 'Autenticación'],
   catalog: ['Servicio 2', 'Catálogo académico (CRUD)'],
   enrollment: ['Servicio 3', 'Inscripciones y calificaciones'],
+  payments: ['Servicio 4', 'Pagos y referencias'],
 };
 
-/** Shows the SOA topology: App → NestJS Gateway → 3 Laravel services, with live status. */
+/** Shows the SOA topology: App → NestJS Gateway → 4 Laravel services, with live status. */
 export default function ServicesStatus({ compact = false }) {
   const { data, error, reload } = useApi('/health');
 

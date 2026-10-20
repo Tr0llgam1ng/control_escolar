@@ -1,10 +1,10 @@
 @echo off
 REM One-time setup for the whole SOA system (Windows).
-REM Requirements: PHP 8.3+, Composer, Node 20+, MySQL running with the 3 databases (create_databases.sql).
+REM Requirements: PHP 8.3+, Composer, Node 20+, MySQL running with the 4 databases (create_databases.sql).
 setlocal
 set ROOT=%~dp0
 
-for %%S in (auth-service catalog-service enrollment-service) do (
+for %%S in (auth-service catalog-service enrollment-service payments-service) do (
     echo.
     echo ===== %%S =====
     pushd "%ROOT%services\%%S"

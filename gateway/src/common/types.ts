@@ -8,4 +8,4 @@ export interface AuthUser {
   is_active: boolean;
 }
 
-export type ServiceName = 'auth' | 'catalog' | 'enrollment';
+export type ServiceName = 'auth' | 'catalog' | 'enrollment' | 'payments';

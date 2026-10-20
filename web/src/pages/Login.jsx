@@ -35,7 +35,7 @@ export default function Login() {
         </div>
         <div className="space-y-4">
           <h2 className="text-3xl font-semibold leading-tight">Un sistema escolar construido con servicios.</h2>
-          <p className="text-slate-400">React → API Gateway en NestJS → 3 servicios Laravel independientes, cada uno con su propia base de datos.</p>
+          <p className="text-slate-400">React → API Gateway en NestJS → 4 servicios Laravel independientes, cada uno con su propia base de datos.</p>
         </div>
         <p className="text-xs text-slate-500">Arquitectura Orientada a Servicios · 9B BIS ISW</p>
       </div>

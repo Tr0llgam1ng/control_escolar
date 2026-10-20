@@ -10,6 +10,9 @@ import CourseDetail from './pages/admin/CourseDetail.jsx';
 import MyCourses from './pages/teacher/MyCourses.jsx';
 import CourseGrades from './pages/teacher/CourseGrades.jsx';
 import StudentReport from './pages/student/Report.jsx';
+import StudentPayments from './pages/student/Payments.jsx';
+import DocumentView from './pages/student/DocumentView.jsx';
+import AdminPayments from './pages/admin/Payments.jsx';
 
 const HOME = { admin: '/admin', teacher: '/teacher', student: '/student' };
 
@@ -37,11 +40,14 @@ export default function App() {
         <Route path="/admin/students" element={<RequireRole role="admin"><StudentsPage /></RequireRole>} />
         <Route path="/admin/courses" element={<RequireRole role="admin"><CoursesPage /></RequireRole>} />
         <Route path="/admin/courses/:id" element={<RequireRole role="admin"><CourseDetail /></RequireRole>} />
+        <Route path="/admin/payments" element={<RequireRole role="admin"><AdminPayments /></RequireRole>} />
 
         <Route path="/teacher" element={<RequireRole role="teacher"><MyCourses /></RequireRole>} />
         <Route path="/teacher/courses/:id" element={<RequireRole role="teacher"><CourseGrades /></RequireRole>} />
 
         <Route path="/student" element={<RequireRole role="student"><StudentReport /></RequireRole>} />
+        <Route path="/student/payments" element={<RequireRole role="student"><StudentPayments /></RequireRole>} />
+        <Route path="/student/documents/:id" element={<RequireRole role="student"><DocumentView /></RequireRole>} />
       </Route>
 
       <Route path="*" element={<Navigate to={user ? HOME[user.role] : '/login'} replace />} />

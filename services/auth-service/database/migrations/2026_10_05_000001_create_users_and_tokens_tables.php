@@ -23,7 +23,9 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->string('token_hash', 64)->unique(); // sha256 of the plain token, never the token itself
-            $table->timestamp('expires_at');
+            // dateTime, not timestamp: MySQL/MariaDB give the first NOT NULL timestamp column
+            // ON UPDATE CURRENT_TIMESTAMP, which would reset the expiry on every validation.
+            $table->dateTime('expires_at');
             $table->timestamp('last_used_at')->nullable();
             $table->timestamps();
         });

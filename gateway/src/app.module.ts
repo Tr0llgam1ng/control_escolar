@@ -13,7 +13,9 @@ import { StudentsController } from './catalog/students.controller';
 import { EnrollmentsController } from './enrollment/enrollments.controller';
 import { RosterService } from './enrollment/roster.service';
 import { MeController } from './me/me.controller';
+import { StudentReportService } from './me/student-report.service';
 import { HealthController } from './health/health.controller';
+import { PaymentsController } from './payments/payments.controller';
 
 @Module({
   imports: [ConfigModule.forRoot({ isGlobal: true })],
@@ -27,10 +29,12 @@ import { HealthController } from './health/health.controller';
     EnrollmentsController,
     MeController,
     HealthController,
+    PaymentsController,
   ],
   providers: [
     ServiceClient,
     RosterService,
+    StudentReportService,
     AuthGuard,
     // Order matters: authenticate first, then check roles.
     { provide: APP_GUARD, useExisting: AuthGuard },

@@ -23,6 +23,7 @@ export class ServiceClient {
       auth: config.get('AUTH_SERVICE_URL') ?? 'http://127.0.0.1:8001',
       catalog: config.get('CATALOG_SERVICE_URL') ?? 'http://127.0.0.1:8002',
       enrollment: config.get('ENROLLMENT_SERVICE_URL') ?? 'http://127.0.0.1:8003',
+      payments: config.get('PAYMENTS_SERVICE_URL') ?? 'http://127.0.0.1:8004',
     };
     this.key = config.get('SERVICE_KEY') ?? '';
   }

@@ -11,7 +11,7 @@ export class HealthController {
   @Public()
   @Get('health')
   async health() {
-    const names: ServiceName[] = ['auth', 'catalog', 'enrollment'];
+    const names: ServiceName[] = ['auth', 'catalog', 'enrollment', 'payments'];
     const checks = await Promise.all(
       names.map(async (name) => {
         const started = Date.now();
