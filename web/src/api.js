@@ -26,6 +26,9 @@ export class ApiError extends Error {
     this.status = status;
     this.errors = payload?.errors ?? {};
     this.service = payload?.service;
+    // Memberships: PLAN_REQUIRED | PLAN_LIMIT | INSUFFICIENT_CREDITS | INSUFFICIENT_TIME
+    this.code = payload?.code;
+    this.upgradeTo = payload?.upgrade_to ?? [];
   }
 }
 
@@ -68,3 +71,24 @@ export async function api(path, { method = 'GET', body, query } = {}) {
 
 /** First validation message of a field, if any. */
 export const fieldError = (error, field) => error?.errors?.[field]?.[0];
+
+/** Downloads a file from the gateway (with the session token) and saves it as `filename`. */
+export async function downloadFile(path, filename) {
+  const session = loadSession();
+  let response;
+  try {
+    response = await fetch(API_URL + path, { headers: session?.token ? { Authorization: `Bearer ${session.token}` } : {} });
+  } catch {
+    throw new ApiError(0, { message: 'No se pudo conectar con el API Gateway.' });
+  }
+  if (!response.ok) {
+    if (response.status === 401) onUnauthorized();
+    throw new ApiError(response.status, await response.json().catch(() => null));
+  }
+  const url = URL.createObjectURL(await response.blob());
+  const a = Object.assign(document.createElement('a'), { href: url, download: filename });
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

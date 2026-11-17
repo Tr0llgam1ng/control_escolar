@@ -1,11 +1,17 @@
 import { HttpException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AuthUser, ServiceName } from './types';
+import { AuthUser, EXTERNAL_SERVICES, ServiceName } from './types';
 
 interface CallOptions {
   body?: unknown;
   query?: Record<string, string | number | undefined | null>;
   user?: AuthUser | null;
+  /** Extra headers, e.g. the Bearer token of an external service. */
+  headers?: Record<string, string>;
+  /** Return the body as text instead of parsing JSON (e.g. an XML file). */
+  raw?: boolean;
+  /** Milliseconds before giving up (default 8000). Stamping an invoice at the PAC can take longer. */
+  timeoutMs?: number;
 }
 
 /**
@@ -24,6 +30,8 @@ export class ServiceClient {
       catalog: config.get('CATALOG_SERVICE_URL') ?? 'http://127.0.0.1:8002',
       enrollment: config.get('ENROLLMENT_SERVICE_URL') ?? 'http://127.0.0.1:8003',
       payments: config.get('PAYMENTS_SERVICE_URL') ?? 'http://127.0.0.1:8004',
+      memberships: config.get('MEMBERSHIPS_SERVICE_URL') ?? 'http://127.0.0.1:8005',
+      cafeteria: config.get('CAFETERIA_SERVICE_URL') ?? 'http://127.0.0.1:8000',
     };
     this.key = config.get('SERVICE_KEY') ?? '';
   }
@@ -68,12 +76,15 @@ export class ServiceClient {
       if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, String(v));
     }
 
+    // Our shared key and the user's identity stay inside our network: external services never get them.
+    const external = EXTERNAL_SERVICES.includes(service);
     const headers: Record<string, string> = {
-      Accept: 'application/json',
+      Accept: opts.raw ? '*/*' : 'application/json',
       'Content-Type': 'application/json',
-      'X-Service-Key': this.key,
+      ...(external ? {} : { 'X-Service-Key': this.key }),
+      ...(opts.headers ?? {}),
     };
-    if (opts.user) {
+    if (opts.user && !external) {
       headers['X-User-Id'] = String(opts.user.id);
       headers['X-User-Role'] = opts.user.role;
     }
@@ -84,7 +95,7 @@ export class ServiceClient {
         method,
         headers,
         body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(opts.timeoutMs ?? 8000),
       });
     } catch {
       // RNF-12: one service down must not crash the gateway — report which one.
@@ -94,6 +105,8 @@ export class ServiceClient {
     if (response.status === 204) return null as T;
 
     const text = await response.text();
+    if (opts.raw && response.ok) return text as T;
+
     let payload: any = null;
     try {
       payload = text ? JSON.parse(text) : null;
@@ -102,8 +115,10 @@ export class ServiceClient {
     }
 
     if (!response.ok) {
+      // Laravel answers { message }, FastAPI answers { detail } (a list of { msg } on 422).
+      const detail = Array.isArray(payload?.detail) ? payload.detail[0]?.msg : payload?.detail;
       throw new HttpException(
-        { ...(payload ?? {}), message: payload?.message ?? 'Error en el servicio', service },
+        { ...(payload ?? {}), message: payload?.message ?? (typeof detail === 'string' ? detail : null) ?? 'Error en el servicio', service },
         response.status,
       );
     }

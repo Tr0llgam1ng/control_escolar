@@ -1,5 +1,6 @@
 import { CircleCheck, LoaderCircle, TriangleAlert, X } from 'lucide-react';
 import { useEffect } from 'react';
+import { Link } from 'react-router-dom';
 
 const cx = (...c) => c.filter(Boolean).join(' ');
 
@@ -171,10 +172,21 @@ export function Alert({ tone = 'error', children }) {
 
 export function ErrorAlert({ error }) {
   if (!error) return null;
+  // Memberships: the plan does not allow it, or the wallet / time balance does not cover it.
+  const plan = error.code === 'PLAN_REQUIRED' || error.code === 'PLAN_LIMIT';
+  const credits = error.code === 'INSUFFICIENT_CREDITS';
+  const time = error.code === 'INSUFFICIENT_TIME';
   return (
-    <Alert>
+    <Alert tone={plan || credits || time ? 'warning' : 'error'}>
       {error.message}
-      {error.service && <span className="ml-1 text-xs opacity-70">(servicio: {error.service})</span>}
+      {error.service && !plan && <span className="ml-1 text-xs opacity-70">(servicio: {error.service})</span>}
+      {plan && (
+        <Link to="/student/membership" className="ml-2 font-semibold underline">
+          {error.upgradeTo?.length ? `Mejorar a ${error.upgradeTo.map((p) => p.name).join(' / ')}` : 'Ver planes'}
+        </Link>
+      )}
+      {credits && <Link to="/student/membership?tab=credits" className="ml-2 font-semibold underline">Comprar créditos</Link>}
+      {time && <Link to="/student/time" className="ml-2 font-semibold underline">Comprar tiempo extra</Link>}
     </Alert>
   );
 }

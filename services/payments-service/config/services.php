@@ -46,6 +46,6 @@ return [
     ],
 
     // Services allowed to call internal-only endpoints (X-Service-Name header).
-    'internal_callers' => array_filter(explode(',', (string) env('PAYMENTS_INTERNAL_CALLERS', 'enrollment-service,catalog-service,auth-service'))),
+    'internal_callers' => array_filter(explode(',', (string) env('PAYMENTS_INTERNAL_CALLERS', 'enrollment-service,catalog-service,auth-service,memberships-service'))),
 
 ];

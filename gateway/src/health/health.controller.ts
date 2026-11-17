@@ -11,7 +11,7 @@ export class HealthController {
   @Public()
   @Get('health')
   async health() {
-    const names: ServiceName[] = ['auth', 'catalog', 'enrollment', 'payments'];
+    const names: ServiceName[] = ['auth', 'catalog', 'enrollment', 'payments', 'memberships'];
     const checks = await Promise.all(
       names.map(async (name) => {
         const started = Date.now();
@@ -23,7 +23,33 @@ export class HealthController {
         }
       }),
     );
-    return { gateway: 'up', services: checks };
+    return { gateway: 'up', services: [...checks, ...(await this.cafeteriaChecks())] };
+  }
+
+  /**
+   * The cafeteria is ONE external process (the Sales System) that offers four services.
+   * Each one is probed on its own route; any HTTP answer below 500 means it is up
+   * (401 = it asks for a token, 404 = it looked for a record that does not exist).
+   */
+  private async cafeteriaChecks() {
+    const base = this.services.baseUrl('cafeteria');
+    const probes = [
+      { name: 'cafeteria-catalog', path: '/api/v1/products' },
+      { name: 'cafeteria-cart', path: '/api/v1/cart' },
+      { name: 'cafeteria-orders', path: '/api/v1/orders' },
+      { name: 'cafeteria-shipping', path: '/api/v1/shipping/0' },
+    ];
+    return Promise.all(
+      probes.map(async ({ name, path }) => {
+        const started = Date.now();
+        try {
+          const res = await fetch(`${base}${path}`, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(3000) });
+          return { name, group: 'cafeteria', url: base, up: res.status < 500, ms: Date.now() - started };
+        } catch {
+          return { name, group: 'cafeteria', url: base, up: false, ms: Date.now() - started };
+        }
+      }),
+    );
   }
 
   /** Admin dashboard: counts gathered in parallel from the catalog and enrollment services. */

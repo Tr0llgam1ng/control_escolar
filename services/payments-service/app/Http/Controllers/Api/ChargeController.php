@@ -14,8 +14,8 @@ use Illuminate\Validation\Rule;
 
 /**
  * Contract: Payments Service v2 — references
- *  GET   /api/document-types                     any user (catalog of paperwork and prices)
- *  POST  /api/charges                            student: {document_type_id}; admin: + {student_id}
+ *  GET   /api/document-types                     any user (?category=paperwork|credits|all, default paperwork)
+ *  POST  /api/charges                            student: {document_type_id, category?}; admin: + {student_id}
  *  GET   /api/charges                            admin (filters: status, method, new, expired, student_id, q)
  *  GET   /api/charges/summary                    admin (counters for the dashboard)
  *  GET   /api/charges/{id}                       admin | owner student (with payments and history)
@@ -27,9 +27,17 @@ use Illuminate\Validation\Rule;
  */
 class ChargeController extends Controller
 {
-    public function documentTypes(): JsonResponse
+    public function documentTypes(Request $request): JsonResponse
     {
-        return response()->json(['data' => DocumentType::where('is_active', true)->orderBy('price')->get()]);
+        $data = $request->validate(['category' => ['nullable', Rule::in([...DocumentType::CATEGORIES, 'all'])]]);
+        $category = $data['category'] ?? DocumentType::PAPERWORK;
+
+        $query = DocumentType::where('is_active', true)->orderBy('price');
+        if ($category !== 'all') {
+            $query->where('category', $category);
+        }
+
+        return response()->json(['data' => $query->get()]);
     }
 
     public function store(Request $request, ChargeService $service): JsonResponse
@@ -37,8 +45,12 @@ class ChargeController extends Controller
         $this->requireRole($request, 'student', 'admin');
         $isAdmin = $this->actor($request)['role'] === 'admin';
 
+        // The caller says which kind of concept it is paying: a credit pack can only be bought through
+        // the memberships flow (category=credits), never as if it were a paperwork request, and vice versa.
+        $category = $request->validate(['category' => ['nullable', Rule::in(DocumentType::CATEGORIES)]])['category'] ?? DocumentType::PAPERWORK;
+
         $data = $request->validate([
-            'document_type_id' => ['required', 'integer', Rule::exists('document_types', 'id')->where('is_active', true)],
+            'document_type_id' => ['required', 'integer', Rule::exists('document_types', 'id')->where('is_active', true)->where('category', $category)],
             'student_id' => [$isAdmin ? 'required' : 'prohibited', 'integer', 'min:1'],
         ], [
             'document_type_id.required' => 'Selecciona el documento que necesitas.',
@@ -140,6 +152,11 @@ class ChargeController extends Controller
             'status' => $charge->status,
             'paid' => $charge->status === Charge::APPROVED,
             'paid_at' => $charge->paid_at?->toIso8601String(),
+            'is_expired' => $charge->is_expired,
+            'amount' => $charge->amount,
+            'currency' => $charge->currency,
+            'document_type_code' => $charge->documentType?->code,
+            'category' => $charge->documentType?->category,
         ]);
     }
 

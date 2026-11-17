@@ -9,7 +9,7 @@ use App\Payments\ChargeService;
 use Illuminate\Database\Seeder;
 
 /**
- * Document catalog, test cards of the local bank simulator and a few demo references.
+ * Document catalog (paperwork + credit packs), test cards of the local bank simulator and a few demo references.
  * student_id 1 is the catalog record of the demo student (alumno@escolar.test).
  */
 class DatabaseSeeder extends Seeder
@@ -24,7 +24,18 @@ class DatabaseSeeder extends Seeder
             ['inscripcion', 'Pago de inscripción / reinscripción', 'Cuota de inscripción al periodo.', '1800.00'],
         ];
         foreach ($types as [$code, $name, $description, $price]) {
-            DocumentType::updateOrCreate(['code' => $code], ['name' => $name, 'description' => $description, 'price' => $price, 'is_active' => true]);
+            DocumentType::updateOrCreate(['code' => $code], ['category' => DocumentType::PAPERWORK, 'name' => $name, 'description' => $description, 'price' => $price, 'is_active' => true]);
+        }
+
+        // Credit packs (memberships). The code must match credit_packs.code in memberships-service,
+        // which decides how many credits each pack gives once the reference is approved.
+        $packs = [
+            ['creditos_100', 'Paquete de 100 créditos', '100 créditos para membresías y módulos especiales.', '100.00'],
+            ['creditos_550', 'Paquete de 550 créditos', '500 créditos + 50 de regalo (10%).', '500.00'],
+            ['creditos_1200', 'Paquete de 1200 créditos', '1000 créditos + 200 de regalo (20%).', '1000.00'],
+        ];
+        foreach ($packs as [$code, $name, $description, $price]) {
+            DocumentType::updateOrCreate(['code' => $code], ['category' => DocumentType::CREDITS, 'name' => $name, 'description' => $description, 'price' => $price, 'is_active' => true]);
         }
 
         // Test cards (any holder name is accepted). These are well-known test numbers, not real cards.

@@ -3,6 +3,7 @@ import { ServiceClient } from '../common/service-client';
 import { AuthUser } from '../common/types';
 import { CurrentUser, Roles } from '../auth/decorators';
 import { StudentReportService } from '../me/student-report.service';
+import { MembershipGate } from '../memberships/membership-gate.service';
 
 /**
  * Payments Service routes. The gateway validates the token, checks the role and routes;
@@ -15,6 +16,7 @@ export class PaymentsController {
   constructor(
     private readonly services: ServiceClient,
     private readonly reports: StudentReportService,
+    private readonly gate: MembershipGate,
   ) {}
 
   /** Paperwork a student can request, with its price. */
@@ -34,11 +36,23 @@ export class PaymentsController {
     return this.services.get('payments', `/students/${student.id}/charges`, { user });
   }
 
-  /** Student: generate a payment reference for a document { document_type_id }. */
+  /**
+   * Student: generate a payment reference for a document { document_type_id }.
+   * Authorization by plan: each NEW reference spends one "paperwork.requests" of the plan
+   * (memberships-service). Asking again for a document that already has a live reference returns
+   * that reference and spends nothing. If payments-service fails, the use is given back.
+   */
   @Roles('student')
   @Post('me/charges')
-  createMine(@Body() body: unknown, @CurrentUser() user: AuthUser) {
-    return this.services.post('payments', '/charges', { body, user });
+  async createMine(@Body() body: { document_type_id?: number }, @CurrentUser() user: AuthUser) {
+    const student = await this.reports.studentOf(user);
+    const mine = await this.services.get('payments', `/students/${student.id}/charges`, { user });
+    const live = mine.data.find(
+      (c: any) => c.document_type_id === Number(body?.document_type_id) && c.status === 'pending' && !c.is_expired,
+    );
+    if (live) return live;
+
+    return this.gate.withQuota(user, 'paperwork.requests', () => this.services.post('payments', '/charges', { body, user }));
   }
 
   @Roles('student')

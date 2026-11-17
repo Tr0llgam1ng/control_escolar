@@ -1,19 +1,22 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Banknote, CreditCard, FileText, Landmark, Printer, Receipt, Wallet } from 'lucide-react';
+import { Banknote, CreditCard, FileText, Landmark, Printer, Receipt, ReceiptText, Wallet } from 'lucide-react';
 import { api, fieldError } from '../../api.js';
 import { useApi } from '../../hooks.js';
 import { Alert, Button, Card, Empty, ErrorAlert, Field, Input, Loading, Modal, PageHeader, Stat, Table, Td } from '../../components/ui.jsx';
 import { PaymentResult, PaymentStatusBadge, dateTime, formatReference, money } from '../../components/payments.jsx';
+import { InvoiceModal } from '../../components/invoicing.jsx';
 
 /** Student: request paperwork, get a payment reference and pay it (card, cash; transfer not available yet). */
 export default function StudentPayments() {
   const types = useApi('/payments/document-types');
   const charges = useApi('/me/charges');
+  const membership = useApi('/me/membership');
   const [creating, setCreating] = useState(null);
   const [error, setError] = useState(null);
   const [paying, setPaying] = useState(null);
   const [generated, setGenerated] = useState(null);
+  const [invoicing, setInvoicing] = useState(null);
 
   if ((types.loading && !types.data) || (charges.loading && !charges.data)) return <Loading />;
 
@@ -24,6 +27,7 @@ export default function StudentPayments() {
       const charge = await api('/me/charges', { method: 'POST', body: { document_type_id: type.id } });
       setGenerated(charge);
       charges.reload();
+      membership.reload();
     } catch (e) {
       setError(e);
     } finally {
@@ -48,6 +52,7 @@ export default function StudentPayments() {
       )}
 
       <Card title="Solicitar documento" icon={FileText} className="mb-6">
+        {membership.data && <QuotaLine membership={membership.data} />}
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {(types.data?.data ?? []).map((t) => (
             <div key={t.id} className="flex flex-col rounded-lg border border-slate-200 p-4">
@@ -79,10 +84,21 @@ export default function StudentPayments() {
                   {c.status === 'pending' && !c.is_expired && (
                     <Button size="sm" icon={CreditCard} onClick={() => setPaying(c)}>{c.payment_method === 'cash' ? 'Ver / pagar' : 'Pagar'}</Button>
                   )}
-                  {c.status === 'approved' && (
-                    <Link to={`/student/documents/${c.id}`}>
-                      <Button size="sm" variant="secondary" icon={Printer}>Ver documento</Button>
-                    </Link>
+                  {c.status === 'approved' && c.document_type?.category === 'credits' && (
+                    <div className="flex justify-end gap-1">
+                      <Link to="/student/membership?tab=credits">
+                        <Button size="sm" variant="secondary" icon={Wallet}>Ver créditos</Button>
+                      </Link>
+                      <Button size="sm" variant="secondary" icon={ReceiptText} onClick={() => setInvoicing(c)}>Factura</Button>
+                    </div>
+                  )}
+                  {c.status === 'approved' && c.document_type?.category !== 'credits' && (
+                    <div className="flex justify-end gap-1">
+                      <Link to={`/student/documents/${c.id}`}>
+                        <Button size="sm" variant="secondary" icon={Printer}>Ver documento</Button>
+                      </Link>
+                      <Button size="sm" variant="secondary" icon={ReceiptText} onClick={() => setInvoicing(c)}>Factura</Button>
+                    </div>
                   )}
                 </Td>
               </tr>
@@ -103,8 +119,25 @@ export default function StudentPayments() {
         )}
       </Modal>
 
+      {invoicing && <InvoiceModal charge={invoicing} scope="student" onClose={() => setInvoicing(null)} />}
+
       {paying && <PayModal charge={paying} onClose={() => setPaying(null)} onDone={() => charges.reload()} />}
     </>
+  );
+}
+
+/** "Plan Silver: te quedan 6 de 8 referencias en este ciclo" (memberships). */
+function QuotaLine({ membership }) {
+  const p = membership.features['paperwork.requests'];
+  const inv = membership.features['invoicing.invoices'];
+  if (!p) return null;
+  return (
+    <p className="-mt-1 mb-4 text-xs text-slate-500">
+      Plan <b>{membership.plan.name}</b>:{' '}
+      {p.unlimited ? 'referencias ilimitadas' : <>te quedan <b>{p.remaining}</b> de {p.value} referencias nuevas en este ciclo</>}
+      {' · '}facturas: {!inv.available ? 'no incluidas' : inv.unlimited ? 'ilimitadas' : `${inv.remaining} de ${inv.value}`}.{' '}
+      <Link to="/student/membership" className="font-medium text-indigo-600 hover:underline">Ver planes</Link>
+    </p>
   );
 }
 
@@ -116,7 +149,7 @@ const METHODS = [
 
 const EMPTY_CARD = { number: '', holder_name: '', exp: '', cvv: '' };
 
-function PayModal({ charge, onClose, onDone }) {
+export function PayModal({ charge, onClose, onDone }) {
   const [method, setMethod] = useState(charge.payment_method ?? 'card');
   const [card, setCard] = useState(EMPTY_CARD);
   const [busy, setBusy] = useState(false);

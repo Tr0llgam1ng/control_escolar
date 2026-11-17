@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, NavLink, Outlet } from 'react-router-dom';
-import { BookOpen, Calendar, ChevronDown, ClipboardList, GraduationCap, Layers, LayoutDashboard, LogOut, Menu, Presentation, Receipt, UserCog, Users } from 'lucide-react';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { BookOpen, BookOpenText, Calendar, ChevronDown, ClipboardList, Clock, Coffee, Crown, DoorOpen, FileText, GraduationCap, Layers, LayoutDashboard, LineChart, LogOut, Menu, MessagesSquare, Presentation, Receipt, UserCog, Users, Wallet } from 'lucide-react';
 import { useAuth } from '../auth.jsx';
+import { useApi } from '../hooks.js';
+import { PlanBadge } from './membership.jsx';
+import WeatherWidget from './WeatherWidget.jsx';
 
 const NAV = {
   admin: [
@@ -12,13 +15,31 @@ const NAV = {
     { to: '/admin/students', label: 'Alumnos', icon: Users },
     { to: '/admin/courses', label: 'Clases e inscripciones', icon: Layers },
     { to: '/admin/payments', label: 'Pagos y referencias', icon: Receipt },
+    { to: '/admin/invoices', label: 'Facturas', icon: FileText },
+    { to: '/admin/memberships', label: 'Membresías', icon: Crown },
   ],
-  teacher: [{ to: '/teacher', label: 'Mis materias', icon: ClipboardList, end: true }],
+  teacher: [
+    { to: '/teacher', label: 'Mis materias', icon: ClipboardList, end: true },
+    { to: '/teacher/tutoring', label: 'Asesorías', icon: MessagesSquare },
+  ],
   student: [
     { to: '/student', label: 'Mi boleta', icon: GraduationCap, end: true },
     { to: '/student/payments', label: 'Trámites y pagos', icon: Receipt },
   ],
 };
+
+// Memberships (students): plan + credits, the 2 credit modules and the 2 time modules.
+const MEMBERSHIP_NAV = [
+  { to: '/student/membership', label: 'Plan y créditos', icon: Wallet },
+  { to: '/student/tutoring', label: 'Asesorías', icon: MessagesSquare, hint: 'créditos' },
+  { to: '/student/analytics', label: 'Análisis académico', icon: LineChart, hint: 'créditos' },
+  { to: '/student/study-rooms', label: 'Cubículos', icon: DoorOpen, hint: 'horas' },
+  { to: '/student/library', label: 'Biblioteca digital', icon: BookOpenText, hint: 'minutos' },
+  { to: '/student/time', label: 'Mi tiempo', icon: Clock },
+];
+
+// External service (Sales System): available to every role.
+const CAFETERIA = { to: '/cafeteria', label: 'Cafetería', icon: Coffee };
 
 const ROLE_LABEL = { admin: 'Control Escolar', teacher: 'Profesor', student: 'Alumno' };
 
@@ -45,11 +66,22 @@ export default function Layout() {
           </div>
         </div>
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4" onClick={() => setOpen(false)}>
-          {NAV[user.role].map(({ to, label, icon: Icon, end }) => (
+          {[...NAV[user.role], CAFETERIA].map(({ to, label, icon: Icon, end }) => (
             <NavLink key={to} to={to} end={end} className={link}>
               <Icon className="h-5 w-5" /> {label}
             </NavLink>
           ))}
+          {user.role === 'student' && (
+            <>
+              <p className="px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Membresía</p>
+              {MEMBERSHIP_NAV.map(({ to, label, icon: Icon, hint }) => (
+                <NavLink key={to} to={to} className={link}>
+                  <Icon className="h-5 w-5" /> <span className="flex-1">{label}</span>
+                  {hint && <span className="text-[10px] font-normal uppercase tracking-wide opacity-60">{hint}</span>}
+                </NavLink>
+              ))}
+            </>
+          )}
         </nav>
       </aside>
 
@@ -59,6 +91,8 @@ export default function Layout() {
             <Menu className="h-6 w-6" />
           </button>
           <p className="flex-1 truncate text-sm text-slate-500">Sistema Escolar · Arquitectura Orientada a Servicios</p>
+          {user.role === 'student' && <MembershipChip />}
+          <WeatherWidget />
           <ProfileMenu user={user} initials={initials} onLogout={logout} />
         </header>
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
@@ -68,6 +102,19 @@ export default function Layout() {
         </main>
       </div>
     </div>
+  );
+}
+
+/** Student's plan and credits in the top bar (memberships-service through the gateway). */
+function MembershipChip() {
+  const { pathname } = useLocation();
+  const { data } = useApi('/me/membership', { query: { _: pathname } });
+  if (!data) return null;
+  return (
+    <Link to="/student/membership" className="hidden items-center gap-2 rounded-lg px-2 py-1 text-xs text-slate-600 hover:bg-slate-100 sm:flex" title="Mi membresía">
+      <PlanBadge plan={data.plan} />
+      <span className="tabular-nums">{Number(data.balance).toLocaleString('es-MX')} créditos</span>
+    </Link>
   );
 }
 

@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Banknote, BellDot, CircleCheck, CircleX, Clock, CreditCard, Eye, Hourglass, Landmark, Lock, Receipt, Search, Wallet } from 'lucide-react';
+import { Banknote, BellDot, CircleCheck, CircleX, Clock, CreditCard, Eye, Hourglass, Landmark, Lock, Receipt, ReceiptText, Search, Wallet } from 'lucide-react';
 import { api, fieldError } from '../../api.js';
 import { useApi } from '../../hooks.js';
 import { Alert, Badge, Button, Card, Empty, ErrorAlert, Field, Input, Loading, Modal, PageHeader, Select, Stat, Table, Td } from '../../components/ui.jsx';
 import { PaymentStatusBadge, dateTime, formatReference, money } from '../../components/payments.jsx';
+import { InvoiceModal } from '../../components/invoicing.jsx';
 
 const TABS = [
   { key: 'new', label: 'Nuevas', query: { new: 1 } },
@@ -121,6 +122,9 @@ const ACTION_LABELS = {
   cash_received: 'Efectivo recibido en caja',
   status_changed: 'Cambio de estado',
   reviewed: 'Revisada por Control Escolar',
+  invoice_stamped: 'Factura timbrada',
+  invoice_failed: 'Factura rechazada por el PAC',
+  invoice_cancelled: 'Factura cancelada',
 };
 
 function ReviewModal({ id, onClose, onChanged }) {
@@ -132,6 +136,7 @@ function ReviewModal({ id, onClose, onChanged }) {
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
+  const [invoicing, setInvoicing] = useState(false);
 
   useEffect(() => {
     if (!loaded) return;
@@ -253,6 +258,17 @@ function ReviewModal({ id, onClose, onChanged }) {
       <Field label="Nota (opcional)" className="mb-5">
         <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ej. el alumno no se presentó a pagar" />
       </Field>
+
+      {charge.status === 'approved' && (
+        <div className="mb-5 flex items-center justify-between gap-3 rounded-lg border border-slate-200 p-4">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-700">3. Factura electrónica</h3>
+            <p className="text-xs text-slate-500">Timbra el CFDI 4.0 de este pago con los datos fiscales del alumno.</p>
+          </div>
+          <Button icon={ReceiptText} variant="secondary" onClick={() => setInvoicing(true)}>Facturar / ver facturas</Button>
+        </div>
+      )}
+      {invoicing && <InvoiceModal charge={charge} scope="admin" onClose={() => setInvoicing(false)} onChanged={onChanged} />}
 
       <h3 className="mb-2 text-sm font-semibold text-slate-700">Historial</h3>
       <ol className="space-y-1 text-xs text-slate-600">

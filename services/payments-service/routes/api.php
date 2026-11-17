@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\ChargeController;
+use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\PaymentController;
 use Illuminate\Support\Facades\Route;
 
@@ -25,4 +26,14 @@ Route::middleware('service.key')->group(function () {
 
     Route::post('charges/{id}/pay', [PaymentController::class, 'pay'])->whereNumber('id')->middleware('throttle:20,1');
     Route::post('charges/{id}/cash', [PaymentController::class, 'receiveCash'])->whereNumber('id');
+
+    // Invoicing: CFDI 4.0 stamped by the PAC (TimbraCFDI). Details in docs/invoicing-design.md
+    Route::get('invoicing/catalogs', [InvoiceController::class, 'catalogs']);
+    Route::get('charges/{id}/invoice', [InvoiceController::class, 'forCharge'])->whereNumber('id');
+    Route::post('charges/{id}/invoice', [InvoiceController::class, 'store'])->whereNumber('id')->middleware('throttle:10,1');
+    Route::get('invoices', [InvoiceController::class, 'index']);
+    Route::get('invoices/{id}', [InvoiceController::class, 'show'])->whereNumber('id');
+    Route::get('invoices/{id}/xml', [InvoiceController::class, 'xml'])->whereNumber('id');
+    Route::post('invoices/{id}/cancel', [InvoiceController::class, 'cancel'])->whereNumber('id');
+    Route::get('invoices/{id}/sat-status', [InvoiceController::class, 'satStatus'])->whereNumber('id');
 });
